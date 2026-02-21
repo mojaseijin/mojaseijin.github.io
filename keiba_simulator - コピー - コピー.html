@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a3622">
+<title>競馬レース GPSトラッキング シミュレーター | Ultimate Edition</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@400;600;700&family=Bebas+Neue&family=Cinzel:wght@700&display=swap');
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --panel-bg: #ffffff;
+  --panel-border: #e2e8f0;
+  --panel-hover: #f7fafc;
+  --text-main: #2d3748;
+  --text-muted: #718096;
+  
+  --turf-bg: #1a3622;
+  --turf-dark: #122618;
+  --turf-lane: #22472d;
+  --turf-border: #2c5938;
+  --text-turf: #e2e8f0;
+  
+  --accent-blue: #3182ce;
+  --accent-red: #e53e3e;
+  --accent-gold: #ecc94b;
+}
+
+body {
+  background: var(--turf-dark); color: var(--text-main); font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; transition: background 0.5s ease;
+}
+
+/* ===========================
+   HEADER
+=========================== */
+header {
+  background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%);
+  background-color: var(--turf-dark);
+  padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 3px solid var(--accent-gold); box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 50; position: relative;
+  transition: background-color 0.5s ease;
+}
+.hdr-left { display: flex; align-items: center; gap: 16px; }
+.hdr-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.12em; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.hdr-logo span { color: var(--accent-gold); }
+.hdr-sub { font-size: 0.7rem; color: #cbd5e0; letter-spacing: 0.15em; font-weight: 700; margin-top: -2px;}
+.hdr-badge { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); font-family: 'Oswald', sans-serif; font-size: 0.75rem; letter-spacing: 0.1em; padding: 4px 12px; border-radius: 4px; }
+.hdr-right { display: flex; align-items: center; gap: 20px; }
+
+.hdr-chips { display: flex; gap: 8px; }
+.hdr-chip { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 5px 10px; font-size: 0.75rem; font-family: 'Oswald', sans-serif; color: #fff; }
+.hdr-chip .lbl { color: #a0aec0; font-size: 0.65rem; margin-right: 6px; }
+
+/* ★改善案1: ターフビジョン（電光掲示板）風のタイマーデザイン */
+.turf-vision-timer {
+  background: #0a140e;
+  border: 3px solid #1c3826;
+  border-radius: 4px;
+  padding: 4px 20px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 160px;
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 10px rgba(0,0,0,0.5);
+}
+.tv-header {
+  color: #fff;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  margin-bottom: 4px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  width: 100%;
+  text-align: center;
+  padding-bottom: 2px;
+}
+.hdr-timer {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.8rem;
+  color: #ffb700; /* LEDオレンジ */
+  letter-spacing: 0.08em;
+  line-height: 0.9;
+  text-shadow: 0 0 10px rgba(255, 183, 0, 0.6);
+  transition: color 0.3s, text-shadow 0.3s;
+}
+/* 1着ゴール時に赤色LEDに変化するスタイル */
+.hdr-timer.finished {
+  color: #ff3333;
+  text-shadow: 0 0 12px rgba(255, 51, 51, 0.9);
+}
+
+/* ===========================
+   MAIN LAYOUT
+=========================== */
+.app { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 76px); }
+
+/* ===========================
+   LEFT PANEL (Settings)
+=========================== */
+.settings-panel { background: var(--panel-bg); border-right: 1px solid var(--panel-border); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
+.sec-title { font-family: 'Oswald', sans-serif; font-size: 0.8rem; letter-spacing: 0.15em; color: var(--accent-blue); border-bottom: 2px solid var(--panel-border); padding-bottom: 6px; margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+label { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+select, input[type="text"], textarea, input[type="number"] { width: 100%; background: #f8fafc; border: 1px solid #cbd5e0; color: #2d3748; padding: 8px 10px; font-size: 0.85rem; font-family: 'Noto Sans JP', sans-serif; border-radius: 6px; outline: none; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
+select:focus, input:focus, textarea:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(49,130,206,0.15); background: #fff; }
+.csv-area { height: 80px; background: #ebf8ff; border: 1px solid #90cdf4; color: #2b6cb0; font-family: monospace; font-size: 0.75rem; resize: vertical; }
+.csv-area::placeholder { color: #90cdf4; }
+.btn-apply { width: 100%; padding: 10px; background: #ebf8ff; border: 1px solid #90cdf4; color: #2b6cb0; font-family: 'Oswald', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; cursor: pointer; border-radius: 6px; margin-top: 4px; font-weight: 700; transition: all 0.2s; }
+.btn-apply:hover { background: #3182ce; color: #fff; }
+.csv-status { font-size: 0.75rem; padding: 8px 10px; border-radius: 6px; display: none; margin-top: 8px; font-weight: 600; }
+.csv-status.ok  { display: block; background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+.csv-status.err { display: block; background: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
+
+#race-suggestions { font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sug-badge { background: #edf2f7; border: 1px solid #cbd5e0; color: #4a5568; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+.sug-badge:hover { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; background: #edf2f7; padding: 4px; border-radius: 8px; }
+.tab { flex: 1; padding: 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 0.75rem; letter-spacing: 0.05em; color: #718096; cursor: pointer; border-radius: 4px; font-weight: 600; transition: all 0.2s; }
+.tab.on { background: #fff; color: var(--accent-blue); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.tab.speed-tab.on { background: #fff; color: var(--accent-red); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+.fur-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fur-cell { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; text-align: center; }
+.fur-lbl { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 2px; font-family: 'Oswald', sans-serif; font-weight: 700; }
+.fur-cell input { background: transparent; border: none; border-bottom: 2px solid #cbd5e0; color: #2d3748; font-size: 1rem; text-align: center; padding: 2px; border-radius: 0; font-weight: 700; }
+.fur-cell input:focus { border-bottom-color: var(--accent-blue); }
+
+.per-wrap { overflow: auto; max-height: 240px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
+.per-table { border-collapse: collapse; font-size: 0.75rem; white-space: nowrap; width: 100%; }
+.per-table th { background: #f7fafc; color: var(--text-muted); padding: 8px; font-family: 'Oswald', sans-serif; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid #e2e8f0; }
+.per-table td { padding: 4px 6px; border-bottom: 1px solid #edf2f7; }
+.per-table .nc { position: sticky; left: 0; background: #f7fafc; color: #2d3748; font-weight: 700; min-width: 90px; z-index: 1; border-right: 1px solid #e2e8f0; }
+.per-table td input { width: 42px; background: transparent; border: none; border-bottom: 1px solid #cbd5e0; color: #2d3748; font-size: 0.75rem; text-align: center; padding: 2px; font-weight: 600; }
+.per-table td input:focus { border-bottom-color: var(--accent-blue); }
+
+.horse-list { display: flex; flex-direction: column; gap: 6px; }
+.horse-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; transition: background 0.2s; }
+.horse-row:hover { background: #f8fafc; }
+.horse-num { font-family: 'Oswald', sans-serif; font-size: 0.9rem; width: 24px; text-align: center; font-weight: 700; border-radius: 4px; padding: 2px 0; }
+.waku-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.horse-inp { flex: 1; background: transparent; border: none; color: #2d3748; font-size: 0.85rem; padding: 4px; font-weight: 600; box-shadow: none; }
+
+.btn-start { width: 100%; padding: 16px; background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); color: #fff; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 15px rgba(229,62,62,0.4); margin-top: auto; transition: all 0.2s; }
+.btn-start:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(229,62,62,0.5); }
+.btn-start:active { transform: translateY(0); }
+.btn-reset { width: 100%; padding: 10px; background: #fff; border: 1px solid #cbd5e0; color: #718096; font-family: 'Oswald', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+.btn-reset:hover { background: #f7fafc; color: #2d3748; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #edf2f7; }
+::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+
+/* ===========================
+   RIGHT: RACE VIEW
+=========================== */
+.race-view { display: flex; flex-direction: column; overflow: hidden; background: var(--turf-bg); position: relative; transition: background 0.5s ease; }
+.gps-section-title { font-family: 'Oswald', sans-serif; font-size: 0.7rem; letter-spacing: 0.25em; color: #68d391; padding: 8px 16px; background: var(--turf-dark); border-bottom: 1px solid var(--turf-border); flex-shrink: 0; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.8); transition: background 0.5s ease; z-index: 20; }
+
+.commentary-ticker { background: rgba(0,0,0,0.85); color: #fff; padding: 6px 16px; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 25; flex-shrink: 0; }
+.ticker-badge { background: var(--accent-red); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-family: 'Oswald', sans-serif; letter-spacing: 0.1em; }
+.ticker-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.8); letter-spacing: 0.05em; }
+
+.tracking-bar { background: var(--turf-bg); border-bottom: 2px solid var(--turf-border); flex-shrink: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 20; transition: background 0.5s ease; }
+.bar-inner { display: flex; align-items: stretch; height: 135px; }
+.bar-left { width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--turf-dark); border-right: 1px solid var(--turf-border); padding: 8px; transition: background 0.5s ease; }
+#mini-map-canvas { display: block; margin-bottom: 4px; }
+.speed-wrap { display: flex; align-items: baseline; gap: 2px; }
+.speed-val { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: #fff; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.speed-unit { font-size: 0.6rem; color: #68d391; letter-spacing: 0.15em; font-weight: 700; }
+.pace-box { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 6px; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.pace-row { display: flex; justify-content: space-between; font-family: 'Oswald', sans-serif; font-size: 0.65rem; color: #a0aec0; }
+.pace-val { color: var(--accent-gold); font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+
+.runner-zone { flex: 1; position: relative; overflow: hidden; background: repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(0,0,0,0.15) 50px, rgba(0,0,0,0.15) 100px); box-shadow: inset 0 0 20px rgba(0,0,0,0.4); }
+#weather-canvas { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
+
+.dist-band { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.dist-line { position: absolute; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%); }
+.dist-lbl { position: absolute; top: 6px; font-family: 'Oswald', sans-serif; font-size: 0.8rem; color: #fff; transform: translateX(-50%); font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,0.5); letter-spacing: 0.05em; }
+
+.s-line { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--accent-gold); box-shadow: 0 0 15px var(--accent-gold); z-index: 3; }
+.s-line::after { content: 'START'; position: absolute; top: 8px; left: 8px; font-family: 'Oswald', sans-serif; font-size: 0.75rem; color: var(--accent-gold); font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+.f-line { position: absolute; top: 0; bottom: 0; right: 0; width: 10px; z-index: 3; background: repeating-linear-gradient(0deg, #fff 0,#fff 10px, #1a202c 10px, #1a202c 20px); box-shadow: -4px 0 15px rgba(0,0,0,0.5); }
+.f-line::after { content: 'GOAL'; position: absolute; top: 8px; right: 14px; font-family: 'Oswald', sans-serif; font-size: 0.75rem; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); font-weight: 700; }
+
+.horse-token { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; transition: left 0.05s linear, opacity 0.3s ease; }
+.runner-zone.has-target .horse-token:not(.targeted) { opacity: 0.25; filter: grayscale(50%); z-index: 5 !important; }
+
+.tok-badge { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 700; box-shadow: 0 4px 8px rgba(0,0,0,0.5); position: relative; transition: transform 0.05s linear; }
+.tok-badge.waku1 { border: 2px solid #cbd5e0; }
+.tok-badge.waku2 { border: 2px solid #cbd5e0; } 
+.tok-badge.waku-other { border: 2px solid rgba(255,255,255,0.9); }
+
+.tok-badge.leader::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--accent-red); animation: leader-ring 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+@keyframes leader-ring { 0%{opacity:1;transform:scale(0.8);} 100%{opacity:0;transform:scale(1.3);} }
+
+.tok-badge.spurt-aura { box-shadow: 0 0 15px 6px rgba(255, 100, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5) !important; animation: spurt-pulse 0.4s infinite alternate; }
+@keyframes spurt-pulse { from { transform: scale(1); filter: brightness(1.1); } to { transform: scale(1.1); filter: brightness(1.4); } }
+.tok-badge.targeted::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; border: 2px dashed #ecc94b; animation: spin-dash 4s linear infinite; }
+@keyframes spin-dash { 100% { transform: rotate(360deg); } }
+
+.tok-name { font-size: 0.7rem; color: #fff; white-space: nowrap; background: rgba(0, 0, 0, 0.35); padding: 3px 8px; border-radius: 6px; text-align: center; font-weight: 600; backdrop-filter: blur(2px); border: 1px solid rgba(255, 255, 255, 0.15); text-shadow: 0 1px 3px rgba(0,0,0,0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: color 0.2s, font-weight 0.2s; }
+
+.bar-right { width: 100px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--turf-dark); border-left: 1px solid var(--turf-border); padding: 0 4px; transition: background 0.5s ease; z-index: 20; }
+.rname-badge { background: var(--accent-red); color: #fff; font-family: 'Noto Sans JP', sans-serif; font-size: 0.65rem; padding: 4px 6px; border-radius: 3px; font-weight: 700; text-align: center; width: 95%; white-space: normal; word-break: keep-all; overflow-wrap: break-word; line-height: 1.25; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.dist-badge-v { writing-mode: vertical-rl; background: rgba(255,255,255,0.1); color: var(--text-turf); font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; padding: 8px 4px; border-radius: 4px; letter-spacing: 0.1em; border: 1px solid rgba(255,255,255,0.15); }
+
+/* 順位パネル */
+.rank-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--turf-dark); transition: background 0.5s ease; }
+.rank-bars-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.rank-row { display: flex; align-items: center; gap: 12px; height: 36px; flex-shrink: 0; background: var(--turf-bg); padding: 0 12px; border-radius: 8px; border: 1px solid var(--turf-border); cursor: pointer; transition: all 0.2s; }
+.rank-row:hover { background: rgba(255,255,255,0.08); transform: translateX(4px); border-color: var(--accent-gold); }
+.rank-row.targeted { background: rgba(236,201,75,0.15); border: 2px solid var(--accent-gold); box-shadow: 0 0 10px rgba(236,201,75,0.3); }
+
+.rank-num { font-family: 'Oswald', sans-serif; font-size: 0.95rem; color: #a0aec0; width: 24px; text-align: right; font-weight: 700; }
+.rank-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-size: 0.75rem; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+.rank-badge.waku1 { border: 1px solid #cbd5e0; }
+.rank-badge.waku2 { border: 1px solid #cbd5e0; }
+.rank-badge.waku-other { border: 1px solid rgba(255,255,255,0.8); }
+.rank-horse-name { width: 130px; font-size: 0.8rem; color: #fff; white-space: nowrap; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.5); letter-spacing: 0.02em; flex-shrink: 0; }
+.rank-bar-wrap { flex: 1; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; position: relative; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); }
+.rank-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; width: 0%; box-shadow: 0 0 8px rgba(0,0,0,0.5); transition: width 0.1s ease-out; }
+.rank-bar-fill.waku1 { border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0; }
+.rank-bar-fill.waku2 { border-top: 1px solid #cbd5e0; border-bottom: 1px solid #cbd5e0; }
+.rank-time { width: 50px; font-family: 'Oswald', sans-serif; font-size: 0.8rem; color: #cbd5e0; text-align: right; font-weight: 600; }
+
+/* ズームビュー */
+.zoom-panel { flex-shrink: 0; background: #000; border-top: 2px solid var(--turf-border); display: flex; flex-direction: column; height: 260px; position: relative; transition: border-color 0.5s ease; }
+.zoom-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; background: rgba(0,0,0,0.7); position: absolute; top:0; left:0; right:0; z-index: 20; border-bottom: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
+.zoom-title { font-family: 'Oswald', sans-serif; font-size: 0.75rem; letter-spacing: 0.15em; color: var(--accent-gold); font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+.zoom-furlong-badge { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: #fff; letter-spacing: 0.1em; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+.zoom-info-row { display: flex; gap: 20px; font-size: 0.75rem; color: #fff; font-family: 'Oswald', sans-serif; font-weight: 600; }
+.zoom-info-lbl { color: #a0aec0; margin-right: 6px; }
+.zoom-canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+#zoom-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ★改善案2: ターフビジョン風 着順ボード */
+.result-bar { background: #0a140e; border-top: 4px solid #1c3826; padding: 16px 20px; display: none; flex-shrink: 0; box-shadow: inset 0 10px 20px rgba(0,0,0,0.8), 0 -5px 20px rgba(0,0,0,0.5); z-index: 30; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); transition: background 0.5s ease; }
+@keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} }
+.result-bar.show { display: block; }
+.result-bar-title { font-family: 'Noto Sans JP', sans-serif; font-size: 1.1rem; color: #fff; letter-spacing: 0.2em; margin-bottom: 12px; font-weight: 900; border-bottom: 2px solid #1c3826; padding-bottom: 4px; }
+.result-items { display: flex; gap: 10px; flex-wrap: wrap; }
+.res-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.6); border: 1px solid #1c3826; border-radius: 4px; padding: 6px 12px; font-size: 0.85rem; color: #fff; font-weight: 600; box-shadow: inset 0 0 5px rgba(0,0,0,0.8); transition: background 0.5s ease; }
+.res-pos { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; width: 24px; text-align: center; color: #fff; }
+.res-time-led { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; color: #ffb700; text-shadow: 0 0 8px rgba(255,183,0,0.5); margin-left: auto; letter-spacing: 0.05em; }
+.res-last3f { background: rgba(255,183,0,0.1); padding: 2px 6px; border-radius: 4px; font-family: 'Oswald', sans-serif; font-size: 0.75rem; color: #ffb700; border: 1px solid rgba(255,183,0,0.3); margin-left: 8px; }
+
+#countdown-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; backdrop-filter: blur(5px); }
+.cd-num { font-family: 'Bebas Neue', sans-serif; font-size: 14rem; color: var(--accent-red); text-shadow: 0 0 50px rgba(229,62,62,0.8); animation: cdpop 0.9s ease-out; }
+.cd-go { color: var(--accent-gold); text-shadow: 0 0 50px rgba(236,201,75,0.8); }
+@keyframes cdpop { 0%{transform:scale(2);opacity:0;filter:blur(10px);} 40%{transform:scale(1);opacity:1;filter:blur(0);} 100%{transform:scale(0.9);opacity:0;} }
+
+@media (max-width: 768px) {
+  .app { display: flex; flex-direction: column; height: auto; }
+  header { padding: 12px 16px; flex-wrap: wrap; }
+  .hdr-left { width: 100%; justify-content: space-between; margin-bottom: 8px; }
+  .hdr-right { width: 100%; justify-content: space-between; }
+  .hdr-chip:nth-child(3) { display: none; }
+  .settings-panel { width: 100%; border-right: none; border-bottom: 4px solid var(--accent-gold); padding-bottom: 24px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 40; }
+  .race-view { width: 100%; height: 800px; flex-shrink: 0; }
+  .bar-left { width: 100px; }
+  .bar-right { width: 80px; }
+  .zoom-panel { height: 220px; }
+  .rank-bars-area { max-height: 300px; }
+  .rank-horse-name { width: 110px; font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-logo">J-TURF <span>TRACKER</span></div>
+      <div class="hdr-sub">ULTIMATE CHROME EDITION</div>
+    </div>
+    <div class="hdr-badge" id="hdr-track-badge">東京競馬場</div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-chips">
+      <div class="hdr-chip"><span class="lbl">距離</span><span id="chip-dist">2000m</span></div>
+      <div class="hdr-chip"><span class="lbl">頭数</span><span id="chip-count">16頭</span></div>
+      <div class="hdr-chip"><span class="lbl">現在</span><span id="chip-cur">—</span></div>
+      <div class="hdr-chip"><span class="lbl">先頭</span><span id="chip-leader">—</span></div>
+    </div>
+    <div class="turf-vision-timer">
+        <div class="tv-header">OFFICIAL TIME</div>
+        <div class="hdr-timer" id="timer-disp">0:00.0</div>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <div class="settings-panel">
+    <div class="sec">
+      <div class="sec-title">📋 DATA IMPORT</div>
+      <textarea class="csv-area" id="csv-input" placeholder="CSVを貼り付け...&#10;馬名,1F,2F,...&#10;レモンポップ,12.5,11.2,..."></textarea>
+      <button class="btn-apply" onclick="applyCSV()">反映する (頭数自動設定)</button>
+      <div class="csv-status" id="csv-status"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🏟 COURSE SETTINGS</div>
+      <div style="display:flex; gap:12px; margin-bottom:10px;">
+        <div style="flex:1">
+            <label>競馬場</label>
+            <select id="sel-track" onchange="onTrackChange()">
+              <option>東京競馬場</option><option>中山競馬場</option><option>京都競馬場</option>
+              <option>阪神競馬場</option><option>中京競馬場</option><option>新潟競馬場</option>
+              <option>小倉競馬場</option><option>函館競馬場</option><option>札幌競馬場</option><option>福島競馬場</option>
+            </select>
+        </div>
+        <div style="flex:1">
+            <label>コース</label>
+            <select id="sel-surface" onchange="changeTurfCondition()">
+              <option value="turf">芝 (Turf)</option>
+              <option value="dirt">ダート (Dirt)</option>
+            </select>
+        </div>
+        <div style="flex:1">
+            <label>馬場状態</label>
+            <select id="sel-cond" onchange="changeTurfCondition()">
+              <option value="good">良</option>
+              <option value="yielding">稍重</option>
+              <option value="soft">重</option>
+              <option value="heavy">不良</option>
+            </select>
+        </div>
+      </div>
+      
+      <div style="display:flex; gap:12px; margin-bottom:10px;">
+        <div style="flex:1">
+          <label>距離</label>
+          <select id="sel-dist" onchange="onDistChange()">
+            <option value="1000">1000m (5F)</option><option value="1150">1150m (5.75F)</option><option value="1200">1200m (6F)</option>
+            <option value="1400">1400m (7F)</option><option value="1600">1600m (8F)</option><option value="1700">1700m (8.5F)</option>
+            <option value="1800">1800m (9F)</option><option value="1900">1900m (9.5F)</option><option value="2000" selected>2000m (10F)</option>
+            <option value="2100">2100m (10.5F)</option><option value="2200">2200m (11F)</option><option value="2400">2400m (12F)</option>
+            <option value="2500">2500m (12.5F)</option><option value="3000">3000m (15F)</option><option value="3200">3200m (16F)</option>
+            <option value="3400">3400m (17F)</option><option value="3600">3600m (18F)</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>天候</label>
+          <select id="sel-weather">
+            <option value="clear">晴れ</option><option value="cloudy">曇り</option><option value="rain">雨</option><option value="snow">雪</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label>レース名</label>
+        <input type="text" id="inp-rname" value="天皇賞(秋)" placeholder="例：天皇賞・春" oninput="onNameInput()">
+        <div id="race-suggestions" style="margin-top:6px;">💡 候補: 読込中...</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">⏱ LAP TIMES</div>
+      <div class="tabs">
+        <div class="tab on" id="tab-c" onclick="switchTab('c')">共通ペース</div>
+        <div class="tab" id="tab-p" onclick="switchTab('p')">個別ラップ</div>
+      </div>
+      <div id="mode-c"><div class="fur-grid" id="fur-grid"></div></div>
+      <div id="mode-p" style="display:none">
+        <div class="per-wrap">
+          <table class="per-table"><thead id="per-thead"></thead><tbody id="per-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🐴 RUNNERS (最大18頭 / CSVから自動設定)</div>
+      <div class="horse-list" id="horse-list"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">⏩ PLAYBACK SPEED</div>
+      <div class="tabs">
+        <div class="tab speed-tab on" id="spd-1" onclick="changeSpeed(1)">1x (LIVE)</div>
+        <div class="tab speed-tab" id="spd-2" onclick="changeSpeed(2)">2x</div>
+        <div class="tab speed-tab" id="spd-3" onclick="changeSpeed(3)">3x</div>
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startRace()">RACE START</button>
+    <button class="btn-reset" onclick="resetRace()">RESET</button>
+  </div>
+
+  <div class="race-view" id="race-view-area">
+    <div class="commentary-ticker" id="comm-ticker">
+        <div class="ticker-badge">LIVE</div>
+        <div class="ticker-text" id="comm-text">レースの開始をお待ちください。推し馬はランキングからクリックでフォーカスできます。</div>
+    </div>
+
+    <div class="gps-section-title">POSITION TRACKER</div>
+    <div class="tracking-bar">
+      <div class="bar-inner">
+        <div class="bar-left">
+          <canvas id="mini-map-canvas" width="100" height="54"></canvas>
+          <div class="speed-wrap">
+            <div class="speed-val" id="speed-val">—</div>
+            <div class="speed-unit">km/h</div>
+          </div>
+          <div class="pace-box" id="pace-box">
+             <div class="pace-row"><span>600m</span><span class="pace-val" id="pace-600">—</span></div>
+             <div class="pace-row"><span>1000m</span><span class="pace-val" id="pace-1000">—</span></div>
+          </div>
+        </div>
+        <div class="runner-zone" id="runner-zone">
+          <canvas id="weather-canvas"></canvas>
+          <div class="dist-band" id="dist-band"></div>
+          <div class="s-line"></div>
+          <div class="f-line"></div>
+        </div>
+        <div class="bar-right">
+          <div class="rname-badge" id="rname-badge">天皇賞(秋)</div>
+          <div class="dist-badge-v" id="dist-badge">2000m</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gps-section-title">LIVE RANKINGS (CLICK TO FOCUS 🎯)</div>
+    <div class="rank-panel">
+      <div class="rank-bars-area" id="rank-bars-area" style="display:flex; flex-direction:column;"></div>
+    </div>
+
+    <div class="zoom-panel">
+      <div class="zoom-header">
+        <div class="zoom-title">HUD ZOOM VIEW (DISTANCE DIFF)</div>
+        <div class="zoom-info-row">
+          <div class="zoom-info-item"><span class="zoom-info-lbl">LEAD</span><span id="zoom-leader" style="color:var(--accent-gold)">—</span></div>
+          <div class="zoom-info-item"><span class="zoom-info-lbl">TAIL</span><span id="zoom-last">—</span></div>
+          <div class="zoom-info-item"><span class="zoom-info-lbl">GAP</span><span id="zoom-gap" style="color:#fff">—</span></div>
+        </div>
+        <div class="zoom-furlong-badge" id="zoom-fur-badge">— F</div>
+      </div>
+      <div class="zoom-canvas-wrap">
+        <canvas id="zoom-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="result-bar" id="result-bar">
+      <div class="result-bar-title">OFFICIAL RESULT</div>
+      <div class="result-items" id="result-items"></div>
+    </div>
+  </div>
+</div>
+
+<div id="countdown-ov"><div class="cd-num" id="cd-num">3</div></div>
+
+<script>
+// ==========================================
+// Modern ES6+ Code for Chrome Environment
+// ==========================================
+
+const JRA_MAIN_RACES = {
+  '東京競馬場': { 1400: '京王杯SC / 京王杯2歳S / 根岸S(ダ)', 1600: '安田記念 / ヴィクトリアM / NHKマイルC / フェブラリーS(ダ) / 武蔵野S(ダ)', 1800: '毎日王冠 / 府中牝馬S / 東スポ杯2歳S / エプソムC', 2000: '天皇賞(秋) / フローラS', 2100: 'ジャパンDダービー(ダ)', 2400: '日本ダービー / ジャパンC / オークス / 青葉賞', 2500: '目黒記念 / アルゼンチン共和国杯', 3400: 'ダイヤモンドS' },
+  '中山競馬場': { 1200: 'スプリンターズS / オーシャンS / カペラS(ダ)', 1600: 'ダービー卿CT / ニュージーランドT / 京成杯AH / フェアリーS', 1800: '中山記念 / スプリングS / 中山牝馬S / フラワーC / マーチS(ダ)', 2000: '皐月賞 / ホープフルS / 弥生賞 / 紫苑S / 中山金杯', 2200: 'AJCC / セントライト記念 / オールカマー', 2500: '有馬記念 / 日経賞', 3600: 'ステイヤーズS' },
+  '京都競馬場': { 1200: 'シルクロードS / 京阪杯 / 葵S', 1400: 'スワンS / ファンタジーS / 京都牝馬S', 1600: 'マイルCS / マイラーズC / 京都金杯 / シンザン記念', 1800: 'きさらぎ賞 / みやこS(ダ)', 1900: '平安S(ダ)', 2000: '秋華賞 / 京都2歳S', 2200: 'エリザベス女王杯 / 京都記念 / 京都新聞杯', 2400: '京都大賞典', 3000: '菊花賞', 3200: '天皇賞(春)' },
+  '阪神競馬場': { 1200: 'セントウルS', 1400: '阪神C / 阪急杯 / フィリーズR / プロキオンS(ダ)', 1600: '桜花賞 / 阪神JF / 朝日杯FS / チューリップ賞', 1800: 'ローズS / 毎日杯 / アンタレスS(ダ)', 2000: '大阪杯 / 鳴尾記念 / マーメイドS / チャレンジC / シリウスS(ダ)', 2200: '宝塚記念', 2400: '神戸新聞杯', 3000: '阪神大賞典' },
+  '中京競馬場': { 1200: '高松宮記念 / CBC賞', 1400: 'ファルコンS', 1600: '中京記念', 1800: 'チャンピオンズC(ダ) / 東海S(ダ)', 2000: '金鯱賞 / 愛知杯 / 中日新聞杯' },
+  '新潟競馬場': { 1000: 'アイビスSD', 1600: '関屋記念 / 新潟2歳S', 1800: 'レパードS(ダ)', 2000: '新潟記念 / 新潟大賞典' },
+  '小倉競馬場': { 1200: '北九州記念 / 小倉2歳S', 1700: 'プロキオンS(ダ)', 1800: '小倉大賞典', 2000: '小倉記念' },
+  '函館競馬場': { 1200: '函館スプリントS / 函館2歳S', 1700: 'マリーンS(ダ) / エルムS(ダ)', 2000: '函館記念' },
+  '札幌競馬場': { 1200: 'キーンランドC', 1700: 'エルムS(ダ)', 1800: 'クイーンS', 2000: '札幌記念' },
+  '福島競馬場': { 1150: '福島放送賞(ダ)', 1700: '福島民友C(ダ)', 1800: 'ラジオNIKKEI賞 / 福島牝馬S', 2000: '七夕賞 / 福島記念' }
+};
+
+const updateRaceSuggestions = (autoSet = false) => {
+  const track = document.getElementById('sel-track').value, dist = document.getElementById('sel-dist').value, sugBox = document.getElementById('race-suggestions');
+  const races = JRA_MAIN_RACES[track]?.[dist];
+  if (races) {
+    const raceArr = races.split(' / '); let html = '💡 候補: ';
+    raceArr.forEach(r => { html += `<span class="sug-badge" onclick="setRaceName('${r}')">${r}</span>`; });
+    sugBox.innerHTML = html;
+    if (autoSet) setRaceName(raceArr[0]);
+  } else { sugBox.innerHTML = '💡 候補: (該当重賞・OPなし)'; }
+};
+
+window.setRaceName = (name) => {
+  const cleanName = name.replace('(ダ)', '').replace('(OP)', '');
+  document.getElementById('inp-rname').value = cleanName;
+  document.getElementById('rname-badge').textContent = cleanName;
+  
+  if (name.includes('(ダ)')) { document.getElementById('sel-surface').value = 'dirt'; changeTurfCondition(); }
+  else { document.getElementById('sel-surface').value = 'turf'; changeTurfCondition(); }
+};
+
+const TRACK_COLORS = {
+    turf: { 'good': { bg: '#1a3622', dark: '#122618', lane: '#22472d', border: '#2c5938' }, 'yielding': { bg: '#28361a', dark: '#1c2612', lane: '#354722', border: '#42592c' }, 'soft': { bg: '#36301a', dark: '#262212', lane: '#474022', border: '#594f2c' }, 'heavy': { bg: '#36241a', dark: '#261912', lane: '#473022', border: '#59392c' } },
+    dirt: { 'good': { bg: '#8b5a2b', dark: '#6b4226', lane: '#a06a33', border: '#5c3818' }, 'yielding': { bg: '#7a5229', dark: '#5c3d1f', lane: '#8f6130', border: '#4d331a' }, 'soft': { bg: '#6b4a29', dark: '#4f371f', lane: '#7d5630', border: '#402d1a' }, 'heavy': { bg: '#5c4226', dark: '#422f1c', lane: '#6b4d2c', border: '#332415' } }
+};
+
+window.changeTurfCondition = () => {
+    const surface = document.getElementById('sel-surface').value, cond = document.getElementById('sel-cond').value, c = TRACK_COLORS[surface][cond];
+    document.documentElement.style.setProperty('--turf-bg', c.bg); document.documentElement.style.setProperty('--turf-dark', c.dark); document.documentElement.style.setProperty('--turf-lane', c.lane); document.documentElement.style.setProperty('--turf-border', c.border);
+    initMiniMap();
+};
+
+const WAKU = [ { bg:'#ffffff', text:'#1a202c', border:'#a0aec0', cls:'waku1' }, { bg:'#1a202c', text:'#ffffff', border:'#4a5568', cls:'waku2' }, { bg:'#e53e3e', text:'#ffffff', border:'#c53030', cls:'waku-other' }, { bg:'#3182ce', text:'#ffffff', border:'#2b6cb0', cls:'waku-other' }, { bg:'#ecc94b', text:'#1a202c', border:'#d69e2e', cls:'waku-other' }, { bg:'#38a169', text:'#ffffff', border:'#276749', cls:'waku-other' }, { bg:'#ed8936', text:'#ffffff', border:'#dd6b20', cls:'waku-other' }, { bg:'#f687b3', text:'#1a202c', border:'#ed64a6', cls:'waku-other' } ];
+const calcWaku = (n, total) => { if (total <= 8) return n; const s = 16 - total; return n <= s ? n : s + Math.ceil((n - s) / 2); };
+const bibStyle = (n, total) => WAKU[Math.min(8, Math.max(1, calcWaku(n, total))) - 1];
+
+let furlongCount = 10, horseCount = 16, furlongTimes = Array(10).fill(12.0), perTimes = [], horses = [];
+let tokens = [], finishedIdx = [], schedules = [], animFrame = null, running = false, speedMult = 1, lastTime = null, simulatedTime = 0, tabMode = 'c';
+
+let recordedPaces = { '600': null, '1000': null };
+let commFlags = { start: false, f600: false, f1000: false, last3F: false, goal: false, lastLeader: -1, lastLeaderTime: 0 };
+let targetedHorseIdx = -1;
+
+const pushCommentary = (text) => { document.getElementById('comm-text').textContent = text; };
+const DEFAULT_NAMES = ['ダイナマイト','サンダー','シルバームーン','ゴールデン','クリスタル','ブラック','ソニック','ファイヤー','ミラクル','エターナル','ラッキー','スカイ','ウインド','ストーム','オーシャン','マウンテン','レインボー','サンシャイン'];
+const changeSpeed = (spd) => { speedMult = spd; [1, 2, 3].forEach(i => document.getElementById(`spd-${i}`).classList.toggle('on', spd === i)); };
+
+window.onDistChange = () => {
+  const dist = parseInt(document.getElementById('sel-dist').value); furlongCount = Math.ceil(dist / 200);
+  document.getElementById('chip-dist').textContent = dist + 'm'; document.getElementById('dist-badge').textContent = dist + 'm';
+  rebuildFurGrid(); rebuildPerTable(); buildDistBand(); drawMiniMap(0, -1); updateRaceSuggestions(true);
+};
+
+const updateHorseCountUI = () => { document.getElementById('chip-count').textContent = horseCount + '頭'; rebuildPerTable(); rebuildHorseList(); buildTokens(); };
+
+window.onTrackChange = () => { document.getElementById('hdr-track-badge').textContent = document.getElementById('sel-track').value; drawMiniMap(0, -1); updateRaceSuggestions(true); };
+window.onNameInput = () => { document.getElementById('rname-badge').textContent = document.getElementById('inp-rname').value || '11R'; };
+
+const switchTab = (t) => {
+  tabMode = t; document.getElementById('tab-c').classList.toggle('on', t === 'c'); document.getElementById('tab-p').classList.toggle('on', t === 'p');
+  document.getElementById('mode-c').style.display = t === 'c' ? '' : 'none'; document.getElementById('mode-p').style.display = t === 'p' ? '' : 'none';
+};
+
+const applyCSV = () => {
+  const raw = document.getElementById('csv-input').value.trim();
+  if (!raw) return csvStatus('err','CSVを貼り付けてください');
+  const lines = raw.split('\n').map(l => l.replace(/\r$/,'').trim()).filter(l => l);
+  if (lines.length < 2) return csvStatus('err','データが少なすぎます');
+  const header = parseLine(lines[0]);
+  const furIdxs = header.reduce((acc, h, i) => (i > 0 && /^\d+F$/.test(h.trim()) ? [...acc, i] : acc), []);
+  if (!furIdxs.length) return csvStatus('err','ハロン列が見つかりません');
+
+  const newNames=[], newTimes=[];
+  lines.slice(1).forEach(line => {
+    const cols = parseLine(line); const name = cols[0] || `馬${newNames.length+1}`;
+    if (name === '馬名') return;
+    newNames.push(name); newTimes.push(furIdxs.map(ci => isNaN(parseFloat(cols[ci])) ? 12 : parseFloat(cols[ci])));
+  });
+  
+  furlongCount = furIdxs.length; const dist = furlongCount * 200; const distSel = document.getElementById('sel-dist');
+  let best = null, bestD = Infinity;
+  [...distSel.options].forEach(o => { const d = Math.abs(parseInt(o.value) - dist); if (d < bestD) { bestD = d; best = o; } });
+  if (best) distSel.value = best.value;
+
+  horseCount = Math.min(18, newNames.length); 
+  horses = newNames.slice(0, horseCount).map((name, i) => ({id: i+1, name})); perTimes = newTimes.slice(0, horseCount);
+  furlongTimes = Array.from({length: furlongCount}, (_, f) => { const avg = perTimes.reduce((s, t) => s + (t[f] || 12), 0) / perTimes.length; return parseFloat(avg.toFixed(1)); });
+
+  document.getElementById('chip-dist').textContent = dist+'m'; document.getElementById('dist-badge').textContent = dist+'m';
+  updateHorseCountUI(); rebuildFurGrid(); buildDistBand(); switchTab('p'); updateRaceSuggestions(true);
+  csvStatus('ok', `SUCCESS: ${horseCount}頭を自動設定しました`);
+};
+
+const parseLine = (line) => { const r = []; let cur = '', q = false; for (const c of line) { if(c === '"') q = !q; else if(c === ',' && !q) { r.push(cur.trim()); cur = ''; } else cur += c; } r.push(cur.trim()); return r; };
+const csvStatus = (type, msg) => { const el = document.getElementById('csv-status'); el.className = `csv-status ${type}`; el.textContent = msg; };
+
+const rebuildFurGrid = () => {
+  while(furlongTimes.length < furlongCount) furlongTimes.push(12.0); furlongTimes = furlongTimes.slice(0, furlongCount);
+  const g = document.getElementById('fur-grid'); g.innerHTML = '';
+  furlongTimes.forEach((t, i) => { const d = document.createElement('div'); d.className = 'fur-cell'; d.innerHTML = `<div class="fur-lbl">${i+1}F</div><input type="number" step="0.1" value="${t.toFixed(1)}" oninput="furlongTimes[${i}]=parseFloat(this.value)||12">`; g.appendChild(d); });
+};
+
+const rebuildPerTable = () => {
+  const thead = document.getElementById('per-thead'), tbody = document.getElementById('per-tbody');
+  let th = '<tr><th class="nc">RUNNER</th>'; for(let f = 1; f <= furlongCount; f++) th += `<th>${f}F</th>`; thead.innerHTML = th + '</tr>'; tbody.innerHTML = '';
+  for(let i = 0; i < horseCount; i++) {
+    if(!perTimes[i]) perTimes[i] = Array(furlongCount).fill(12.0); while(perTimes[i].length < furlongCount) perTimes[i].push(12.0);
+    let tr = `<tr><td class="nc">${horses[i]?.name || DEFAULT_NAMES[i]}</td>`;
+    for(let f = 0; f < furlongCount; f++){ tr += `<td><input type="number" step="0.1" value="${(perTimes[i][f]||12).toFixed(1)}" oninput="if(!perTimes[${i}])perTimes[${i}]=[];perTimes[${i}][${f}]=parseFloat(this.value)||12"></td>`; }
+    tbody.innerHTML += tr + '</tr>';
+  }
+};
+
+const rebuildHorseList = () => {
+  const list = document.getElementById('horse-list'); list.innerHTML = '';
+  for(let i = 0; i < horseCount; i++){
+    if(!horses[i]) horses[i] = {id:i+1, name:DEFAULT_NAMES[i] || `馬${i+1}`};
+    const b = bibStyle(i+1, horseCount), row = document.createElement('div'); row.className = 'horse-row';
+    const txtColor = ['#ffffff', '#ecc94b', '#f687b3'].includes(b.bg) ? '#2d3748' : b.text;
+    row.innerHTML = `<div class="horse-num" style="color:${txtColor}; background:${b.bg}; border-radius:3px; padding:2px 0;">${i+1}</div><div class="waku-dot" style="background:${b.bg};border:1px solid ${b.border}"></div><input class="horse-inp" type="text" value="${horses[i].name}" oninput="horses[${i}].name=this.value;syncPer(${i},this.value)">`;
+    list.appendChild(row);
+  }
+};
+window.syncPer = (idx, name) => { const cells = document.querySelectorAll('#per-tbody .nc'); if(cells[idx]) cells[idx].textContent = name; };
+
+const buildTokens = () => {
+  const zone = document.getElementById('runner-zone'); zone.querySelectorAll('.horse-token').forEach(el => el.remove()); tokens = [];
+  for(let i = 0; i < horseCount; i++){
+    const b = bibStyle(i+1, horseCount), tok = document.createElement('div'); tok.className = 'horse-token'; tok.id = `token-${i}`;
+    tok.innerHTML = `<div class="tok-badge ${b.cls}" id="tok-${i}" style="background:${b.bg};color:${b.text};">${i+1}</div><div class="tok-name" id="tok-n-${i}">${horses[i]?.name||''}</div>`;
+    const yPct = horseCount > 1 ? 15 + (i / (horseCount - 1)) * 70 : 50;
+    tok.style.top = `${yPct}%`; tok.style.left = '0px'; 
+    zone.appendChild(tok); tokens.push(tok);
+  }
+  buildRankBars();
+};
+
+window.toggleTarget = (idx) => {
+    const rZone = document.getElementById('runner-zone');
+    if (targetedHorseIdx === idx) {
+        targetedHorseIdx = -1; rZone.classList.remove('has-target');
+        document.querySelectorAll('.horse-token, .rank-row').forEach(el => el.classList.remove('targeted')); document.querySelectorAll('.tok-badge').forEach(el => el.classList.remove('targeted'));
+    } else {
+        targetedHorseIdx = idx; rZone.classList.add('has-target');
+        document.querySelectorAll('.horse-token, .rank-row, .tok-badge').forEach(el => el.classList.remove('targeted'));
+        document.getElementById(`token-${idx}`).classList.add('targeted'); document.getElementById(`tok-${idx}`).classList.add('targeted'); document.getElementById(`rank-row-${idx}`).classList.add('targeted');
+    }
+    if(!running) drawZoom(simulatedTime); 
+};
+
+// ★改善案2: 時速表記に km/h を追加
+const buildRankBars = () => {
+  const area = document.getElementById('rank-bars-area'); area.innerHTML = '';
+  for (let i = 0; i < horseCount; i++) {
+    const b = bibStyle(i+1, horseCount), row = document.createElement('div'); 
+    row.className = 'rank-row'; row.id = `rank-row-${i}`; row.setAttribute('onclick', `toggleTarget(${i})`);
+    row.innerHTML = `
+      <div class="rank-num" id="rn-${i}">${i+1}</div>
+      <div class="rank-badge ${b.cls}" id="rb-${i}" style="background:${b.bg};color:${b.text};">${i+1}</div>
+      <div class="rank-horse-name" id="rhname-${i}">${horses[i]?.name||''}</div>
+      <div class="rank-bar-wrap"><div class="rank-bar-fill ${b.cls}" id="rf-${i}" style="background:${b.bg};"></div></div>
+      <div class="rank-speed-wrap" style="width: 55px; display: flex; align-items: baseline; justify-content: flex-end;">
+          <div class="rank-speed" id="rspeed-${i}" style="text-align:right; font-family:'Bebas Neue', sans-serif; font-size:1.1rem; color:#68d391; letter-spacing:0.05em;">--</div>
+          <div style="font-size:0.55rem; color:#a0aec0; margin-left:2px; font-family:'Oswald', sans-serif;">km/h</div>
+      </div>
+      <div class="rank-time" id="rt-${i}">—</div>
+    `;
+    area.appendChild(row);
+  }
+};
+
+const TRACK_DATA = { '東京競馬場':{circ:2083,turn:'L',rx:0.44,ry:0.25,label:'TOKYO'}, '中山競馬場':{circ:1667,turn:'R',rx:0.36,ry:0.32,label:'NAKAYAMA'}, '京都競馬場':{circ:1894,turn:'R',rx:0.42,ry:0.25,label:'KYOTO'}, '阪神競馬場':{circ:1689,turn:'R',rx:0.40,ry:0.28,label:'HANSHIN'}, '中京競馬場':{circ:1706,turn:'L',rx:0.40,ry:0.28,label:'CHUKYO'}, '新潟競馬場':{circ:2223,turn:'L',rx:0.48,ry:0.18,label:'NIIGATA'}, '小倉競馬場':{circ:1615,turn:'R',rx:0.35,ry:0.35,label:'KOKURA'}, '函館競馬場':{circ:1628,turn:'R',rx:0.33,ry:0.36,label:'HAKODATE'}, '札幌競馬場':{circ:1641,turn:'R',rx:0.35,ry:0.35,label:'SAPPORO'}, '福島競馬場':{circ:1600,turn:'R',rx:0.36,ry:0.34,label:'FUKUSHIMA'} };
+let miniMapCtx = null; const initMiniMap = () => { const c = document.getElementById('mini-map-canvas'); if(c) { miniMapCtx = c.getContext('2d'); drawMiniMap(0, -1); } };
+
+// ★改善案A: ミニマップで全頭の位置を可視化
+const drawMiniMap = (leaderDist, leaderIdx) => {
+  const canvas = document.getElementById('mini-map-canvas'); if (!canvas || !miniMapCtx) return;
+  const ctx = miniMapCtx, W = canvas.width, H = canvas.height; ctx.clearRect(0, 0, W, H);
+  const trackName = document.getElementById('sel-track').value, td = TRACK_DATA[trackName] || TRACK_DATA['東京競馬場'], dist = parseInt(document.getElementById('sel-dist').value);
+  const cx = W / 2, cy = H / 2.3, rx = td.rx * W, ry = td.ry * H, trackW = Math.min(rx, ry) * 0.28;
+  const style = getComputedStyle(document.documentElement);
+  
+  ctx.fillStyle = style.getPropertyValue('--turf-lane').trim() || '#22472d'; ctx.beginPath(); ctx.ellipse(cx, cy, rx + trackW/2, ry + trackW/2, 0, 0, 2*Math.PI); ctx.fill();
+  ctx.fillStyle = style.getPropertyValue('--turf-dark').trim() || '#122618'; ctx.beginPath(); ctx.ellipse(cx, cy, rx - trackW/2, ry - trackW/2, 0, 0, 2*Math.PI); ctx.fill();
+  ctx.strokeStyle = style.getPropertyValue('--turf-border').trim() || '#2c5938'; ctx.lineWidth = trackW; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 2*Math.PI); ctx.stroke();
+  
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 0.5; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  const finAngle = Math.PI / 2, dir = td.turn === 'L' ? -1 : 1, turns = dist / td.circ, startAngle = finAngle - (dir * turns * 2 * Math.PI);
+  const drawMarker = (angle, color, label, isGoal) => { const mx = cx + rx * Math.cos(angle), my = cy + ry * Math.sin(angle); ctx.beginPath(); ctx.arc(mx, my, 3.5, 0, 2*Math.PI); ctx.fillStyle = color; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 8px Oswald, sans-serif'; ctx.fillText(label, mx + (isGoal ? 5 : -9), my + 5); };
+  const drawArrow = (angleOffset) => { const arrA = startAngle + (dir * angleOffset * Math.PI), ax = cx + rx * Math.cos(arrA), ay = cy + ry * Math.sin(arrA), rot = arrA + (dir === 1 ? Math.PI/2 : -Math.PI/2); ctx.save(); ctx.translate(ax, ay); ctx.rotate(rot); ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4); ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill(); ctx.restore(); };
+  drawArrow(0.25); drawArrow(1.25); drawMarker(finAngle, '#e53e3e', 'G', true); drawMarker(startAngle, '#ecc94b', 'S', false); 
+  
+  const drawTokenH = targetedHorseIdx !== -1 ? targetedHorseIdx : leaderIdx;
+  
+  // 全馬の点を描画
+  const orderMap = [...Array(horseCount).keys()].sort((a,b) => (schedules[a]?.currentDist||0) - (schedules[b]?.currentDist||0));
+  orderMap.forEach(i => {
+      const drawDist = schedules[i]?.currentDist || 0;
+      if (drawDist <= 0) return;
+      const p = Math.min(1, drawDist / dist);
+      const currentAngle = startAngle + (dir * p * turns * 2 * Math.PI);
+      const hx = cx + rx * Math.cos(currentAngle), hy = cy + ry * Math.sin(currentAngle);
+      const b = bibStyle(i+1, horseCount);
+      
+      ctx.globalAlpha = (targetedHorseIdx !== -1 && targetedHorseIdx !== i) ? 0.3 : 1;
+      
+      // 先頭・ターゲット馬は大きくハイライト
+      if (i === drawTokenH) {
+          ctx.shadowBlur = 8; ctx.shadowColor = targetedHorseIdx !== -1 ? '#ecc94b' : b.bg;
+          ctx.beginPath(); ctx.arc(hx, hy, targetedHorseIdx !== -1 ? 5 : 4, 0, 2*Math.PI); ctx.fillStyle = b.bg; ctx.fill();
+          ctx.shadowBlur = 0; ctx.strokeStyle = targetedHorseIdx !== -1 ? '#ecc94b' : '#fff'; ctx.lineWidth = targetedHorseIdx !== -1 ? 2 : 1; ctx.stroke();
+      } else {
+          ctx.beginPath(); ctx.arc(hx, hy, 2.5, 0, 2*Math.PI); 
+          ctx.fillStyle = b.bg; ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.5; ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+  });
+
+  ctx.font = '600 7px Oswald, sans-serif'; ctx.fillStyle = '#718096'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(td.label, W/2, H - 1); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+};
+
+const getDistance = (sch, elapsed) => {
+    if (elapsed <= 0) return 0; const totalDist = furlongCount * 200; if (elapsed >= sch.totalTime) return totalDist;
+    let dist = 0;
+    for (let f = 0; f < furlongCount; f++) {
+        const segTime = sch.times[f], cumStart = f === 0 ? 0 : sch.cumulative[f - 1], cumEnd = sch.cumulative[f];
+        if (elapsed >= cumEnd) { dist += 200; } else if (elapsed > cumStart) { dist += 200 * ((elapsed - cumStart) / segTime); break; }
+    } return dist;
+};
+
+let lanePositions = [], startDelays = [], zoomCtx = null;
+const initZoom = () => { const c = document.getElementById('zoom-canvas'); zoomCtx = c.getContext('2d'); resizeZoomCanvas(); };
+const resizeZoomCanvas = () => { const c = document.getElementById('zoom-canvas'), w = c.parentElement; if(!c || !w)return; c.width = w.offsetWidth; c.height = w.offsetHeight; initWeatherCanvas(); };
+
+const generateZoomParams = () => {
+  lanePositions = []; startDelays = [];
+  for (let i = 0; i < horseCount; i++) { lanePositions.push(Math.max(0.05, Math.min(0.95, (i / Math.max(horseCount - 1, 1)) + (Math.random() - 0.5) * 0.2))); startDelays.push(Math.random() < 0.15 ? Math.random() * 1.5 : Math.random() * 0.4); }
+};
+
+const drawZoom = (elapsed) => {
+  const canvas = document.getElementById('zoom-canvas'); if (!canvas || !zoomCtx) return;
+  const W = canvas.width, H = canvas.height, ctx = zoomCtx; ctx.clearRect(0, 0, W, H);
+  
+  const style = getComputedStyle(document.documentElement);
+  const bgColor = style.getPropertyValue('--turf-dark').trim() || '#122618';
+  const midColor = style.getPropertyValue('--turf-bg').trim() || '#1a3622';
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H); 
+  bgGrad.addColorStop(0, bgColor); bgGrad.addColorStop(0.5, midColor); bgGrad.addColorStop(1, bgColor);
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+
+  const RAIL_T = 30, RAIL_B = H - 20, TRACK_H = RAIL_B - RAIL_T;
+
+  if(running) {
+      const speedOffset = (elapsed * 600 * speedMult) % 150; ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      for (let x = speedOffset; x < W + 150; x += 150) { ctx.fillRect(W - x, RAIL_T - 10, 4, 10); ctx.fillRect(W - x, RAIL_B, 4, 10); }
+      const speedLineOffset = (elapsed * 800 * speedMult) % 100;
+      for (let x = speedLineOffset; x < W; x += 100) { ctx.fillStyle = 'rgba(255, 255, 255, 0.02)'; ctx.fillRect(W - x, 0, 40, H); }
+  }
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, RAIL_T); ctx.lineTo(W, RAIL_T); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, RAIL_B); ctx.lineTo(W, RAIL_B); ctx.stroke();
+
+  let maxD = 0, leaderI = -1;
+  for (let i = 0; i < horseCount; i++) { const d = schedules[i]?.currentDist || 0; if (d > maxD) { maxD = d; leaderI = i; } }
+
+  let viewFurlong = Math.floor(maxD / 200); if (viewFurlong >= furlongCount) viewFurlong = furlongCount - 1;
+  document.getElementById('zoom-fur-badge').textContent = (viewFurlong + 1) + 'F';
+
+  const viewStartDist = viewFurlong * 200;
+  const zoomX = [], zoomY = []; let minX = 2, maxX = -1, lastI = -1;
+  
+  for (let i = 0; i < horseCount; i++) {
+    const d = schedules[i]?.currentDist || 0; const x = (d - viewStartDist) / 200; zoomX.push(x);
+    const drift = (((i * 31 + viewFurlong * 17) % 100 / 100) - 0.5) * 0.15; zoomY.push(Math.max(0.05, Math.min(0.95, lanePositions[i] + drift)));
+    if (x > maxX) maxX = x; if (!finishedIdx.includes(i) && x < minX) { minX = x; lastI = i; }
+  }
+
+  document.getElementById('zoom-leader').textContent = leaderI >= 0 ? (leaderI+1) : '—'; document.getElementById('zoom-last').textContent = lastI >= 0 ? (lastI+1) : '—';
+  const gapDist = (maxX - minX) * 200; document.getElementById('zoom-gap').textContent = running && minX <= 1 ? gapDist.toFixed(1) + 'm' : '—';
+
+  const drawOrder = [...Array(horseCount).keys()].sort((a, b) => zoomY[a] - zoomY[b]);
+
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip(); 
+
+  drawOrder.forEach(i => {
+    const isTarget = (targetedHorseIdx === i); const hasTarget = (targetedHorseIdx !== -1);
+    ctx.globalAlpha = (hasTarget && !isTarget) ? 0.25 : 1;
+
+    const b = bibStyle(i + 1, horseCount), px = 30 + zoomX[i] * (W - 60), py = RAIL_T + zoomY[i] * TRACK_H, r = 15;
+    ctx.beginPath(); ctx.ellipse(px-4, py+8, r, r/2, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fill();
+
+    if (isTarget) {
+        ctx.beginPath(); ctx.arc(px, py, r + 6, 0, Math.PI * 2); 
+        ctx.strokeStyle = 'rgba(236, 201, 75, 0.8)'; ctx.lineWidth = 3; ctx.setLineDash([4, 2]); ctx.stroke(); ctx.setLineDash([]);
+    } else if (i === leaderI && !finishedIdx.includes(i)) { 
+        ctx.beginPath(); ctx.arc(px, py, r + 4, 0, Math.PI * 2); 
+        ctx.strokeStyle = 'rgba(229, 62, 62, 0.8)'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fillStyle = finishedIdx.includes(i) ? 'rgba(0,0,0,0.4)' : b.bg; ctx.fill();
+    ctx.strokeStyle = finishedIdx.includes(i) ? 'rgba(0,0,0,0.2)' : b.border; ctx.lineWidth = 1.5; ctx.stroke();
+    let txtColor = b.text; if (finishedIdx.includes(i)) txtColor = 'rgba(255,255,255,0.4)'; else if (['#ffffff', '#ecc94b', '#f687b3'].includes(b.bg)) txtColor = '#1a202c';
+    ctx.font = 'bold 13px Oswald, sans-serif'; ctx.fillStyle = txtColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(i + 1, px, py);
+  });
+  ctx.restore();
+};
+
+const buildDistBand = () => {
+  const band=document.getElementById('dist-band'); band.innerHTML='';
+  const totalDist = furlongCount * 200;
+  for(let i=1; i<=furlongCount; i++){
+    const distFromStart = i * 200;
+    const remainDist = totalDist - distFromStart;
+    const pct=(i/furlongCount)*100, line=document.createElement('div'); line.className='dist-line'; line.style.left=pct+'%';
+    const lbl=document.createElement('div'); lbl.className='dist-lbl'; lbl.style.left=pct+'%'; 
+    
+    if(remainDist > 0) {
+        lbl.textContent = `残り${remainDist}m`;
+    } else {
+        lbl.textContent = `GOAL`;
+        lbl.style.color = 'var(--accent-red)';
+    }
+    band.appendChild(line); band.appendChild(lbl);
+  }
+};
+
+const buildSchedules = () => {
+  const s=[];
+  for(let i=0; i<horseCount; i++){
+    const times = tabMode==='p' && perTimes[i] && perTimes[i].length===furlongCount ? [...perTimes[i]] : furlongTimes.map(t => Math.max(9.5, t + (Math.random()-0.5)*1.0 + (Math.random()-0.5)*0.5));
+    const cum=[]; let acc=0; times.forEach(t => { acc+=t; cum.push(acc); });
+    s.push({times, cumulative:cum, totalTime:acc, currentDist: 0});
+  } return s;
+};
+
+let weatherCtx = null; let particles = [];
+const initWeatherCanvas = () => { const wc = document.getElementById('weather-canvas'), zone = document.getElementById('runner-zone'); if(!wc || !zone) return; wc.width = zone.offsetWidth; wc.height = zone.offsetHeight; weatherCtx = wc.getContext('2d'); particles = []; };
+
+const drawWeather = () => {
+    const wc = document.getElementById('weather-canvas'); if (!wc || !weatherCtx) return;
+    const ctx = weatherCtx; ctx.clearRect(0, 0, wc.width, wc.height); const weather = document.getElementById('sel-weather').value; if (weather === 'clear' || weather === 'cloudy') return;
+
+    if (particles.length === 0) {
+        const count = weather === 'rain' ? 100 : 50;
+        for (let i = 0; i < count; i++) { particles.push({ x: Math.random() * wc.width, y: Math.random() * wc.height, s: Math.random() * 2 + (weather==='rain'?10:1), l: Math.random() * 10 + 5 }); }
+    }
+
+    ctx.fillStyle = weather === 'rain' ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.8)'; ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1;
+    particles.forEach(p => {
+        if (weather === 'rain') { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.s * 1.5, p.y + p.l); ctx.stroke(); p.x -= p.s * 1.5; p.y += p.s * 2;
+        } else if (weather === 'snow') { ctx.beginPath(); ctx.arc(p.x, p.y, p.l / 4, 0, Math.PI*2); ctx.fill(); p.y += p.s * 0.5; p.x += Math.sin(p.y * 0.05) * 1; }
+        if (p.y > wc.height || p.x < 0) { p.y = -10; p.x = Math.random() * wc.width * 1.5; }
+    });
+};
+
+const startRace = () => {
+  if(running) return;
+  document.querySelectorAll('.horse-inp').forEach((inp,i) => { if(horses[i]) horses[i].name=inp.value; });
+  tokens.forEach((tok,i) => {
+    const n = tok.querySelector('.tok-name'); if(n) n.textContent = horses[i]?.name || '';
+    tok.style.left='0px'; 
+    const badge=tok.querySelector('.tok-badge'); if(badge){badge.className = badge.className.replace(' leader','').replace(' blinking','').replace(' spurt-aura',''); badge.style.transform='translateY(0)';}
+  });
+  
+  document.getElementById('result-bar').className = 'result-bar';
+  document.getElementById('result-items').innerHTML=''; 
+  
+  // タイマー初期化
+  const timerEl = document.getElementById('timer-disp');
+  timerEl.style.color=''; timerEl.classList.remove('finished');
+  
+  finishedIdx=[]; schedules=buildSchedules(); generateZoomParams();
+
+  recordedPaces = { '600': null, '1000': null };
+  document.getElementById('pace-600').textContent = '—'; document.getElementById('pace-1000').textContent = '—';
+  commFlags = { start: false, f600: false, f1000: false, last3F: false, goal: false, lastLeader: -1, lastLeaderTime: 0 };
+  
+  const w = document.getElementById('sel-weather').value;
+  const wText = w==='rain'?'雨の降る中、':w==='snow'?'雪が舞う中、':'';
+  pushCommentary(`${wText}各馬ゲートイン完了。スタートを待っています...`);
+
+  if (window.innerWidth <= 768) { document.getElementById('race-view-area').scrollIntoView({ behavior: 'smooth' }); }
+
+  countdown(() => { running=true; lastTime = performance.now(); simulatedTime = 0; commFlags.start = true; pushCommentary('ゲートが開いた！各馬一斉にスタートしました！'); animFrame = requestAnimationFrame(tick); });
+};
+
+const countdown = (cb) => {
+  const ov=document.getElementById('countdown-ov'), num=document.getElementById('cd-num'); ov.style.display='flex'; let c=3;
+  const t = () => { if(c>0){ num.textContent=c; num.className='cd-num'; c--; setTimeout(t,900); } else { num.textContent='GO!'; num.className='cd-num cd-go'; setTimeout(() => { ov.style.display='none'; cb(); },600); } }; t();
+};
+
+const formatTimeStr = (sec) => { const m = Math.floor(sec/60), sStr = (sec%60).toFixed(1).padStart(4, '0'); return `${m}:${sStr}`; };
+
+const tick = (now) => {
+  if (!lastTime) lastTime = now;
+  const dt = (now - lastTime) / 1000; lastTime = now; simulatedTime += dt * speedMult;
+  const elapsed = simulatedTime;
+  
+  const timerEl = document.getElementById('timer-disp');
+  let displayTime = elapsed;
+
+  const zone=document.getElementById('runner-zone'), ZW=zone.offsetWidth||600;
+  let maxDist = 0, leaderIdx = -1, allDone = true, totalDist = furlongCount * 200;
+  const newlyFinished = [];
+
+  for(let i=0; i<horseCount; i++) {
+    const sch = schedules[i], delay = startDelays[i]; let mappedElapsed = 0;
+    if (elapsed > delay) { const runTime = Math.max(0.1, sch.totalTime - delay); mappedElapsed = (elapsed - delay) * (sch.totalTime / runTime); }
+    if (elapsed >= sch.totalTime) { mappedElapsed = sch.totalTime; }
+
+    const d = getDistance(sch, mappedElapsed); sch.currentDist = d;
+    if(elapsed >= sch.totalTime) { if(!finishedIdx.includes(i)) newlyFinished.push(i); } else { allDone = false; }
+    if(d > maxDist && !finishedIdx.includes(i) && !newlyFinished.includes(i)) { maxDist = d; leaderIdx = i; }
+  }
+
+  if (maxDist >= 600 && !recordedPaces['600']) { recordedPaces['600'] = elapsed; document.getElementById('pace-600').textContent = formatTimeStr(elapsed); }
+  if (maxDist >= 1000 && !recordedPaces['1000']) { recordedPaces['1000'] = elapsed; document.getElementById('pace-1000').textContent = formatTimeStr(elapsed); if(!commFlags.f1000) { pushCommentary(`先頭は${horses[leaderIdx]?.name}、前半1000mを通過。`); commFlags.f1000 = true; } }
+  
+  const remain = totalDist - maxDist;
+  if (remain <= 600 && remain > 0 && !commFlags.last3F) { pushCommentary('勝負の直線へ！残り600m、各馬一気にスパートをかける！'); commFlags.last3F = true; }
+  
+  if (leaderIdx !== -1 && leaderIdx !== commFlags.lastLeader && maxDist > 200 && remain > 100) {
+      if (now - commFlags.lastLeaderTime > 3000 / speedMult) { pushCommentary(`ここで先頭が代わった！${horses[leaderIdx]?.name}が先頭に立ちます！`); commFlags.lastLeader = leaderIdx; commFlags.lastLeaderTime = now; }
+  }
+
+  if (newlyFinished.length > 0) {
+      newlyFinished.sort((a,b) => schedules[a].totalTime - schedules[b].totalTime);
+      newlyFinished.forEach(i => {
+          finishedIdx.push(i);
+          const order=finishedIdx.length, b=bibStyle(i+1,horseCount), pc=order===1?'p1':order===2?'p2':order===3?'p3':'';
+          const item=document.createElement('div'); item.className='res-item';
+          const medal = order===1?'🥇':order===2?'🥈':order===3?'🥉':order;
+          
+          let last3F = 0; const startIdx = Math.max(0, furlongCount - 3);
+          for(let f = startIdx; f < furlongCount; f++) last3F += schedules[i].times[f];
+          
+          item.innerHTML=`<span class="res-pos ${pc}">${medal}</span><div class="res-badge ${b.cls}" style="background:${b.bg};color:${b.text};border-color:${b.border}">${i+1}</div><span style="color:#fff;">${horses[i]?.name||''}</span><span class="res-time-led">${formatTimeStr(schedules[i].totalTime)}</span><span class="res-last3f">上り ${last3F.toFixed(1)}</span>`;
+          document.getElementById('result-items').appendChild(item); document.getElementById('result-bar').className='result-bar show';
+          
+          const badge=document.getElementById('tok-'+i); if(badge){ badge.className=badge.className.replace(' leader','').replace(' blinking','').replace(' spurt-aura',''); badge.style.transform='translateY(0)'; }
+          const nameEl = document.getElementById('tok-n-'+i); if(nameEl){ nameEl.style.color = '#fff'; nameEl.style.fontWeight = '600'; }
+          if (order === 1 && !commFlags.goal) { pushCommentary(`ゴーーーール！勝ったのは${horses[i]?.name}！！`); commFlags.goal = true; }
+      });
+  }
+
+  // ★ 1着馬ゴール時、タイマーを停止して赤色に変更
+  if (finishedIdx.length > 0) {
+      displayTime = schedules[finishedIdx[0]].totalTime;
+      if (!timerEl.classList.contains('finished')) timerEl.classList.add('finished');
+  } else {
+      if (timerEl.classList.contains('finished')) timerEl.classList.remove('finished');
+  }
+  timerEl.textContent = formatTimeStr(displayTime);
+
+  let currentF = Math.floor(maxDist / 200) + 1; if (currentF > furlongCount) currentF = furlongCount;
+  if(leaderIdx>=0 && !finishedIdx.includes(leaderIdx)){ const sch=schedules[leaderIdx]; let cf=0; for(let f=0;f<sch.cumulative.length;f++){if(elapsed<=sch.cumulative[f]){cf=f;break;}} document.getElementById('speed-val').textContent=((200/sch.times[cf])*3.6).toFixed(1); }
+
+  for(let i=0; i<horseCount; i++) {
+    if(!tokens[i]) continue;
+    const prog = schedules[i].currentDist / totalDist; tokens[i].style.left = (prog * ZW) + 'px';
+    
+    const badge = document.getElementById('tok-'+i);
+    const nameEl = document.getElementById('tok-n-'+i);
+    
+    if (running && !finishedIdx.includes(i)) { 
+        const freq = 12 * speedMult; 
+        const bob = Math.sin(elapsed * freq + i) * 3; 
+        if(badge) badge.style.transform = `translateY(${bob}px)`; 
+    } else { 
+        if(badge) badge.style.transform = `translateY(0)`; 
+    }
+
+    if(badge){
+      const isL=(i===leaderIdx && !finishedIdx.includes(i)); 
+      if(isL && !badge.className.includes('leader')) badge.className += ' leader'; else if(!isL) badge.className = badge.className.replace(' leader','');
+      
+      if(nameEl) {
+         if (isL) { nameEl.style.color = 'var(--accent-gold)'; nameEl.style.fontWeight = '900'; } 
+         else { nameEl.style.color = '#fff'; nameEl.style.fontWeight = '600'; }
+      }
+      
+      const horseRemain = totalDist - schedules[i].currentDist; let isSpurt = false;
+      if (horseRemain <= 600 && horseRemain > 0 && !finishedIdx.includes(i)) {
+          let hcf=0; for(let f=0;f<schedules[i].cumulative.length;f++){if(elapsed<=schedules[i].cumulative[f]){hcf=f;break;}}
+          if(schedules[i].times[hcf] <= 11.8) { isSpurt = true; }
+      }
+      if (isSpurt && !badge.className.includes('spurt-aura')) badge.className += ' spurt-aura'; else if (!isSpurt) badge.className = badge.className.replace(' spurt-aura','');
+      if(isL && horseCount>1){ 
+          const sortedDist = schedules.map(s=>s.currentDist).sort((a,b)=>b-a);
+          if(sortedDist[0] - (sortedDist[1]||0) > 10) { if(!badge.className.includes('blinking')) badge.className += ' blinking'; } else { badge.className = badge.className.replace(' blinking',''); }
+      } else { badge.className = badge.className.replace(' blinking',''); }
+    }
+    if(targetedHorseIdx === i) { tokens[i].style.zIndex = 200; } else { tokens[i].style.zIndex = (i===leaderIdx) ? 100 : Math.floor(prog*50)+10; }
+  }
+
+  drawWeather(); drawMiniMap(maxDist, leaderIdx); drawZoom(elapsed);
+  
+  document.getElementById('chip-cur').textContent = maxDist > 0 ? currentF+'F' : '—'; document.getElementById('chip-leader').textContent = leaderIdx >= 0 ? `${leaderIdx+1}番` :'—';
+
+  const sortedIdx = [...Array(horseCount).keys()].sort((a,b)=>{
+      const fA = finishedIdx.indexOf(a), fB = finishedIdx.indexOf(b);
+      if (fA !== -1 && fB !== -1) return fA - fB;
+      if (fA !== -1) return -1; if (fB !== -1) return 1;
+      return schedules[b].currentDist - schedules[a].currentDist;
+  });
+
+  sortedIdx.forEach((horseIdx, rankIdx) => {
+    const rowEl = document.getElementById(`rank-row-${horseIdx}`); if(rowEl) rowEl.style.order = rankIdx;
+    const fill = document.getElementById('rf-'+horseIdx), rankNum = document.getElementById('rn-'+horseIdx), timeEl = document.getElementById('rt-'+horseIdx);
+    const prog = schedules[horseIdx].currentDist / totalDist;
+    if (fill) fill.style.width = (prog * 100).toFixed(1)+'%'; if (rankNum) rankNum.textContent = rankIdx+1;
+    
+    const speedEl = document.getElementById(`rspeed-${horseIdx}`);
+    if (finishedIdx.includes(horseIdx)) { 
+        if(timeEl) { timeEl.textContent = formatTimeStr(schedules[horseIdx].totalTime); timeEl.style.color = 'var(--accent-gold)'; }
+        if(speedEl) { speedEl.textContent = 'FIN'; speedEl.style.color = '#718096'; }
+    } else {
+      let dispF = 0; for (let f=0;f<schedules[horseIdx].cumulative.length;f++) { if(elapsed<=schedules[horseIdx].cumulative[f]){dispF=f;break;} }
+      if (timeEl) {
+        if(dispF>0) { timeEl.textContent = formatTimeStr(schedules[horseIdx].cumulative[dispF-1]||0); } else { timeEl.textContent = '—'; }
+      }
+      if (speedEl && running) {
+        const currentSpeed = ((200 / schedules[horseIdx].times[dispF]) * 3.6);
+        speedEl.textContent = currentSpeed.toFixed(1);
+        if (currentSpeed >= 61.0) { speedEl.style.color = 'var(--accent-red)'; speedEl.style.textShadow = '0 0 8px rgba(229,62,62,0.6)'; }
+        else { speedEl.style.color = '#68d391'; speedEl.style.textShadow = 'none'; }
+      } else if (speedEl) { speedEl.textContent = '--'; }
+    }
+  });
+
+  if(allDone || finishedIdx.length>=horseCount){ 
+      running=false; document.getElementById('speed-val').textContent='—'; 
+      pushCommentary('全馬ゴールイン！レース確定です。'); return; 
+  }
+  
+  animFrame=requestAnimationFrame(tick);
+};
+
+const resetRace = () => {
+  if(animFrame) cancelAnimationFrame(animFrame);
+  running=false; finishedIdx=[]; simulatedTime=0; lastTime=null;
+  
+  const timerEl = document.getElementById('timer-disp');
+  timerEl.textContent='0:00.0'; timerEl.classList.remove('finished');
+  
+  document.getElementById('chip-cur').textContent='—'; document.getElementById('chip-leader').textContent='—'; document.getElementById('speed-val').textContent='—';
+  document.getElementById('result-bar').className='result-bar';
+  
+  recordedPaces = { '600': null, '1000': null }; document.getElementById('pace-600').textContent = '—'; document.getElementById('pace-1000').textContent = '—';
+  pushCommentary('レースの開始をお待ちください。推し馬はランキングからクリックでフォーカスできます。');
+
+  if(targetedHorseIdx !== -1) toggleTarget(targetedHorseIdx);
+
+  drawMiniMap(0, -1); drawWeather();
+  tokens.forEach(tok => { 
+      tok.style.left='0px'; 
+      const badge=tok.querySelector('.tok-badge'); if(badge){ badge.className=badge.className.replace(' leader','').replace(' blinking','').replace(' spurt-aura',''); badge.style.transform='translateY(0)';} 
+      const nameEl = tok.querySelector('.tok-name'); if(nameEl) { nameEl.style.color = '#fff'; nameEl.style.fontWeight = '600'; }
+  });
+  for(let i=0;i<horseCount;i++){ 
+      const fill=document.getElementById('rf-'+i), rankNum=document.getElementById('rn-'+i), timeEl=document.getElementById('rt-'+i), speedEl=document.getElementById(`rspeed-${i}`); 
+      const rowEl = document.getElementById(`rank-row-${i}`); if(rowEl) rowEl.style.order = 0;
+      if(fill) fill.style.width='0%'; if(rankNum) rankNum.textContent=(i+1); 
+      if(timeEl){ timeEl.textContent='—'; timeEl.style.color=''; } 
+      if(speedEl){ speedEl.textContent='--'; speedEl.style.color='#68d391'; speedEl.style.textShadow='none'; }
+  }
+};
+
+const init = () => {
+  furlongCount=10; horseCount=16; furlongTimes=Array(10).fill(12.0); perTimes=[]; horses=[];
+  for(let i=0; i<horseCount; i++) { horses.push({id:i+1, name:DEFAULT_NAMES[i] || `馬${i+1}`}); perTimes.push(Array(10).fill(12.0)); }
+  rebuildFurGrid(); rebuildPerTable(); rebuildHorseList(); buildTokens(); buildDistBand(); initZoom(); initMiniMap(); initWeatherCanvas();
+  
+  changeTurfCondition();
+  updateRaceSuggestions(true);
+  
+  const weatherLoop = () => { if(!running) drawWeather(); requestAnimationFrame(weatherLoop); };
+  weatherLoop();
+};
+
+window.onload = init;
+window.addEventListener('resize',() => { buildDistBand(); resizeZoomCanvas(); initWeatherCanvas(); drawMiniMap(0,-1); });
+document.getElementById('sel-weather').addEventListener('change', () => { particles=[]; drawWeather(); });
+</script>
+</body>
+</html>
